@@ -1,0 +1,96 @@
+﻿@page "/counter"
+@using SixLabors;
+@using SixLabors.ImageSharp;
+@using SixLabors.ImageSharp.Processing;
+@using ZXing;
+@using ZXing.QrCode;
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+<p><InputFile OnChange="LoadFile"/></p>
+<p role="status">format: @format</p>
+<p role="status">text: @text</p>
+<p role="status">exception: @exception</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+    private string? format;
+    private string? text;
+    string? exception;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+        barcodeReader();
+    }
+
+    private void barcodeReader()
+    {
+        // create a barcode reader instance
+        // load a bitmap
+        try
+        {
+            if(fileInfo == null)
+            {
+                exception = "File is null.";
+                return;
+            }
+
+            using var image = Image.Load(fileInfo.Data);
+
+
+            var ms = new MemoryStream();
+            image.SaveAsBmp(ms);
+
+            LuminanceSource source = new RGBLuminanceSource(ms.GetBuffer(), image.Width, image.Height);
+
+
+            if (image == null)
+                return;
+
+            var reader = new BarcodeReaderGeneric();
+
+            var result = reader.Decode(source);
+            // do something with the result
+            if (result != null)
+            {
+                format = result.BarcodeFormat.ToString();
+                text = result.Text;
+            }
+        }
+        catch(Exception ex)
+        {
+
+            Console.WriteLine(ex.Message);
+            exception = ex.Message;
+        }
+    }
+
+    FileInfo? fileInfo = null;
+    async Task LoadFile(InputFileChangeEventArgs e)
+    {
+
+        var file = e.GetMultipleFiles(1);
+        var buf = new byte[file[0].Size];
+        await file[0].OpenReadStream().ReadAsync(buf);
+        fileInfo = new FileInfo()
+            {
+                FileName = file[0].Name,
+                Size = file[0].Size,
+                Data = buf
+            };
+    }
+
+    public class FileInfo
+    {
+        public string? FileName { get; set; }
+        public byte[]? Data { get; set; }
+        public long Size { get; set; }
+    }
+
+}
